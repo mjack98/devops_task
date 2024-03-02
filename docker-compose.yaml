@@ -1,0 +1,46 @@
+# version: '3.3'
+
+# services:
+
+#   mongo:
+#     image: mongo
+#     container_name: mongo
+#     ports:
+#       - "27017:27017"
+#     volumes:
+#       - mongo_data:/data/db
+
+#   app:
+#     image: mjack98/devops_task:latest
+#     container_name: devops_task
+#     depends_on:
+#       - mongo
+#     environment:
+#       MONGO_URI: mongodb://mongo:27017/users
+#     ports:
+#       - "5000:5000"
+
+# volumes:
+#   mongo_data:
+
+version: '3.3'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: "mongodb://mongo:27017/users"
+
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
