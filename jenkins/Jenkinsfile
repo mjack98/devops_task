@@ -1,0 +1,84 @@
+pipeline{
+	agent {
+		kubernetes {
+      
+            defaultContainer 'jnlp'
+            cloud 'dev-marketplace-kub'	
+            yamlFile 'jenkins/build.yaml'
+      
+        }
+	}
+	environment {
+        OCI_REGISTRY_URL 	= 'jed.ocir.io'
+        OCI_REPO_IMAGE   	= "axnfm4jb3i73/neom-ai-trainingapp"
+        OCI_REPO_TAG		= "train_1.0.${BUILD_NUMBER}"
+        OCI_NAMESPACE		= "neom-ai-trainingapp"
+        REPO_BRANCH_NAME			= "helm"
+        REPO_GIT_CREDENTIALS		= "Github"
+        HELM_REPO_BRANCH_NAME	= "helm"
+        HELM_REPO_URL= "github.ibm.com/neom-grocery-mvp/neom-helm-charts.git"
+        HELM_DIR = "neom-helm-charts/neom-ai-training"
+        HELM_VALUE_YAML="dev-values.yaml"
+        HELM_APP_NAME="aitraining"
+        }
+	stages{
+		stage("Image Build and Push "){
+			steps {
+				container('podman') {
+					sh  "podman build . -t ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG}"			
+					withCredentials([usernamePassword(credentialsId: "OCI-ContainerRegistery",
+													usernameVariable: 'USERNAME',
+													passwordVariable: 'PASSWORD')]) {
+						sh "podman login -u ${USERNAME} -p ${PASSWORD} ${OCI_REGISTRY_URL} --tls-verify=false"
+						sh "podman push ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG} --tls-verify=false"
+						sh "podman tag ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG} ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:latest"
+						sh "podman push ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:latest --tls-verify=false"
+					}
+				}
+			}
+		}
+		stage('update helm chart'){
+      steps{
+        dir('Helm') {
+          
+              withCredentials([usernamePassword(credentialsId: "${REPO_GIT_CREDENTIALS}",
+													usernameVariable: 'USERNAME',
+													passwordVariable: 'PASSWORD')]) {
+                
+                sh '''git clone https://${USERNAME}:${PASSWORD}@${HELM_REPO_URL}
+                      sed -i "s/train_.*/${OCI_REPO_TAG}/g" ${HELM_DIR}/${HELM_VALUE_YAML}
+                      cd ${HELM_DIR} 
+                      git status
+                      git config --global user.email ${USERNAME}
+                      git config --global user.name ${USERNAME}
+                      git remote rename origin destination
+                      git remote add origin https://${USERNAME}:${PASSWORD}@${HELM_REPO_URL}
+                      git add .
+                      git commit -m 'tag update'
+                      git status 
+                      git push origin ${HELM_REPO_BRANCH_NAME}
+                  '''
+          }
+				}
+      }
+
+    }
+
+		stage("Helm"){
+			steps {
+				container('helm') {
+					dir('Helm') {
+            withCredentials([usernamePassword(credentialsId: "OCI-ContainerRegistery",
+													usernameVariable: 'USERNAME',
+													passwordVariable: 'PASSWORD')]) {
+			
+              sh "ls && helm -n ${OCI_NAMESPACE} upgrade --install ${HELM_APP_NAME} ./${HELM_DIR}/ -f ./${HELM_DIR}/${HELM_VALUE_YAML} " 
+		   
+		}
+          
+					}
+				}
+			}
+		}
+	}
+}
