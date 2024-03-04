@@ -11,12 +11,12 @@ pipeline{
 	environment {
         IMAGE   	= "mjack98/devops_task"
         REPO_TAG		= "python_1.0.${BUILD_NUMBER}"
-        NAMESPACE		= "neom-ai-trainingapp"
-        REPO_BRANCH_NAME	= "helm"
+        NAMESPACE		= "python_app"
+        REPO_BRANCH_NAME	= "master"
         REPO_GIT_CREDENTIALS	= "Github"
         HELM_REPO_BRANCH_NAME	= "helm"
-        HELM_REPO_URL= "github.com/mjack98/helm_charts.git"
-        HELM_DIR = "helm_charts/python_app"
+        HELM_REPO_URL= "github.com/mjack98/helm_chart"
+        HELM_DIR = "helm_chart/python_app"
         HELM_VALUE_YAML="values.yaml"
         HELM_APP_NAME="python_app"
         }
