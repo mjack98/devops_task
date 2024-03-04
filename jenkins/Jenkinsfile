@@ -3,37 +3,32 @@ pipeline{
 		kubernetes {
       
             defaultContainer 'jnlp'
-            cloud 'dev-marketplace-kub'	
+            cloud 'dev-cluster'	
             yamlFile 'jenkins/build.yaml'
       
         }
 	}
 	environment {
-        OCI_REGISTRY_URL 	= 'jed.ocir.io'
-        OCI_REPO_IMAGE   	= "axnfm4jb3i73/neom-ai-trainingapp"
-        OCI_REPO_TAG		= "train_1.0.${BUILD_NUMBER}"
-        OCI_NAMESPACE		= "neom-ai-trainingapp"
-        REPO_BRANCH_NAME			= "helm"
-        REPO_GIT_CREDENTIALS		= "Github"
+        IMAGE   	= "mjack98/devops_task"
+        REPO_TAG		= "python_1.0.${BUILD_NUMBER}"
+        NAMESPACE		= "neom-ai-trainingapp"
+        REPO_BRANCH_NAME	= "helm"
+        REPO_GIT_CREDENTIALS	= "Github"
         HELM_REPO_BRANCH_NAME	= "helm"
-        HELM_REPO_URL= "github.ibm.com/neom-grocery-mvp/neom-helm-charts.git"
-        HELM_DIR = "neom-helm-charts/neom-ai-training"
-        HELM_VALUE_YAML="dev-values.yaml"
-        HELM_APP_NAME="aitraining"
+        HELM_REPO_URL= "github.com/mjack98/helm_charts.git"
+        HELM_DIR = "helm_charts/python_app"
+        HELM_VALUE_YAML="values.yaml"
+        HELM_APP_NAME="python_app"
         }
 	stages{
 		stage("Image Build and Push "){
 			steps {
 				container('podman') {
-					sh  "podman build . -t ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG}"			
-					withCredentials([usernamePassword(credentialsId: "OCI-ContainerRegistery",
-													usernameVariable: 'USERNAME',
-													passwordVariable: 'PASSWORD')]) {
-						sh "podman login -u ${USERNAME} -p ${PASSWORD} ${OCI_REGISTRY_URL} --tls-verify=false"
-						sh "podman push ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG} --tls-verify=false"
-						sh "podman tag ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:${OCI_REPO_TAG} ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:latest"
-						sh "podman push ${OCI_REGISTRY_URL}/${OCI_REPO_IMAGE}:latest --tls-verify=false"
-					}
+					sh  "podman build . -t ${IMAGE}:${REPO_TAG}"			
+					sh "podman push ${IMAGE}:${REPO_TAG}"
+					sh "podman tag ${IMAGE}:${REPO_TAG} ${IMAGE}:latest"
+					sh "podman push ${IMAGE}:latest"
+					
 				}
 			}
 		}
@@ -46,7 +41,7 @@ pipeline{
 													passwordVariable: 'PASSWORD')]) {
                 
                 sh '''git clone https://${USERNAME}:${PASSWORD}@${HELM_REPO_URL}
-                      sed -i "s/train_.*/${OCI_REPO_TAG}/g" ${HELM_DIR}/${HELM_VALUE_YAML}
+                      sed -i "s/python_.*/${REPO_TAG}/g" ${HELM_DIR}/${HELM_VALUE_YAML}
                       cd ${HELM_DIR} 
                       git status
                       git config --global user.email ${USERNAME}
@@ -55,10 +50,8 @@ pipeline{
                       git remote add origin https://${USERNAME}:${PASSWORD}@${HELM_REPO_URL}
                       git add .
                       git commit -m 'tag update'
-                      git status 
                       git push origin ${HELM_REPO_BRANCH_NAME}
                   '''
-          }
 				}
       }
 
@@ -68,17 +61,13 @@ pipeline{
 			steps {
 				container('helm') {
 					dir('Helm') {
-            withCredentials([usernamePassword(credentialsId: "OCI-ContainerRegistery",
-													usernameVariable: 'USERNAME',
-													passwordVariable: 'PASSWORD')]) {
 			
-              sh "ls && helm -n ${OCI_NAMESPACE} upgrade --install ${HELM_APP_NAME} ./${HELM_DIR}/ -f ./${HELM_DIR}/${HELM_VALUE_YAML} " 
-		   
-		}
+              sh "ls && helm -n ${NAMESPACE} upgrade --install ${HELM_APP_NAME} ./${HELM_DIR}/ -f ./${HELM_DIR}/${HELM_VALUE_YAML} " 
           
 					}
 				}
 			}
 		}
 	}
+}
 }
