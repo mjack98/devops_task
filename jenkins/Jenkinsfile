@@ -14,6 +14,7 @@ pipeline{
         NAMESPACE		= "python_app"
         REPO_BRANCH_NAME	= "master"
         REPO_GIT_CREDENTIALS	= "Github"
+        ContainerRegistery_CREDENTIALS = "ContainerRegistery"
         HELM_REPO_BRANCH_NAME	= "helm"
         HELM_REPO_URL= "github.com/mjack98/helm_chart"
         HELM_DIR = "helm_chart/python_app"
@@ -24,11 +25,14 @@ pipeline{
 		stage("Image Build and Push "){
 			steps {
 				container('podman') {
-					sh  "podman build . -t ${IMAGE}:${REPO_TAG}"			
+					sh  "podman build . -t ${IMAGE}:${REPO_TAG}"	
+                                        withCredentials([usernamePassword(credentialsId: "${ContainerRegistery_CREDENTIALS}",
+													usernameVariable: 'USERNAME',
+													passwordVariable: 'PASSWORD')]) {		
 					sh "podman push ${IMAGE}:${REPO_TAG}"
 					sh "podman tag ${IMAGE}:${REPO_TAG} ${IMAGE}:latest"
 					sh "podman push ${IMAGE}:latest"
-					
+                                        }
 				}
 			}
 		}
